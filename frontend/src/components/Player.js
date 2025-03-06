@@ -8,6 +8,7 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isTransferringPlayback, setIsTransferringPlayback] = useState(false);
+  const [previousTrackUri, setPreviousTrackUri] = useState(null);
 
   // Function to transfer playback to this device
   const transferPlayback = async (deviceId) => {
@@ -65,7 +66,7 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
         onDeviceIdChange('');
       });
 
-      player.addListener('player_state_changed', (state) => {
+      player.addListener('player_state_changed', async (state) => {
         if (!state) return;
         console.log('Player state changed:', state);
         setIsPlaying(!state.paused);
@@ -78,6 +79,23 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
             artist: track.artists[0].name,
             album: track.album.name
           });
+
+          // If we're the DJ and the track has changed, update the queue
+          if (djToken && track.uri !== previousTrackUri) {
+            setPreviousTrackUri(track.uri);
+            
+            // Remove the previous track from the queue
+            try {
+              await axios.delete('http://localhost:4000/spotify/queue', {
+                data: {
+                  djToken,
+                  index: 0 // Remove the first track since it just finished
+                }
+              });
+            } catch (err) {
+              console.error('Error updating queue after track change:', err);
+            }
+          }
         }
 
         // If we're the DJ, broadcast the current state
@@ -85,7 +103,7 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
           socket.emit('playbackUpdate', {
             djToken,
             isPlaying: !state.paused,
-            currentTrack: state.track_window.current_track,
+            currentTrack: state.track_window?.current_track,
             position: state.position,
           });
         }
@@ -100,7 +118,7 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
         player.disconnect();
       }
     };
-  }, [accessToken, onDeviceIdChange, socket]);
+  }, [accessToken, onDeviceIdChange, socket, djToken, previousTrackUri]);
 
   // Listen for playback state updates
   useEffect(() => {

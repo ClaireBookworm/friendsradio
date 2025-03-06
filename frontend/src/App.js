@@ -209,6 +209,8 @@ function App() {
 		socket.on('connect', () => {
 			console.log('Connected to server');
 			setIsConnected(true);
+			// Request initial queue state on connection
+			socket.emit('requestQueue');
 		});
 
 		// Handle disconnection
@@ -219,8 +221,16 @@ function App() {
 
 		// Listen for queue updates
 		socket.on('queueUpdated', (serverQueue) => {
-			console.log('Received server queue:', serverQueue);
-			setQueue(serverQueue);
+			console.log('App received queue update:', {
+				serverQueue,
+				timestamp: new Date().toISOString()
+			});
+			if (Array.isArray(serverQueue)) {
+				setQueue(serverQueue);
+				console.log('Queue state updated in App:', serverQueue);
+			} else {
+				console.warn('Received invalid queue data:', serverQueue);
+			}
 		});
 
 		return () => {
@@ -458,7 +468,21 @@ function App() {
 				)}
 
 				{/* Queue and Player Section */}
-				{!djToken && <QueueList queue={queue} accessToken={accessToken} />}
+				{!djToken ? (
+					<QueueList queue={queue} accessToken={accessToken} />
+				) : (
+					<div className="dj-controls">
+						<Controls
+							socket={socket}
+							djToken={djToken}
+							accessToken={accessToken}
+							deviceId={deviceId}
+							queue={queue}
+							setQueue={setQueue}
+							showQueueControls={true}
+						/>
+					</div>
+				)}
 				
 				<Player 
 					accessToken={accessToken} 
@@ -469,15 +493,6 @@ function App() {
 
 				{djToken && (
 					<div className="player-section">
-						<Controls
-							socket={socket}
-							djToken={djToken}
-							accessToken={accessToken}
-							deviceId={deviceId}
-							queue={queue}
-							setQueue={setQueue}
-						/>
-
 						<button 
 							onClick={handleSkip} 
 							className={`button ${!deviceId ? 'disabled' : ''}`}

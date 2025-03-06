@@ -3,7 +3,7 @@ const router = express.Router();
 const querystring = require('querystring');
 const axios = require('axios');
 
-const { userSessions, trackQueue, io } = require('../server');
+const { store, io } = require('../server');
 
 const {
   SPOTIFY_CLIENT_ID,
@@ -151,8 +151,8 @@ router.post('/queue', async (req, res) => {
 		hasAccessToken: !!accessToken,
 		hasDeviceId: !!deviceId,
 		uri,
-		queueLength: trackQueue.length,
-		currentQueue: trackQueue,
+		queueLength: store.trackQueue.length,
+		currentQueue: store.trackQueue,
 		timestamp: new Date().toISOString()
 	});
 
@@ -161,7 +161,7 @@ router.post('/queue', async (req, res) => {
 	}
   
 	// Look up the session in userSessions
-	const session = userSessions[djToken];
+	const session = store.userSessions[djToken];
 	console.log('Found session:', session);
 	
 	if (!session) {
@@ -170,11 +170,11 @@ router.post('/queue', async (req, res) => {
   
 	// Add to in-memory queue
 	const newItem = { uri, addedBy: session.username };
-	trackQueue.push(newItem);
+	store.trackQueue.push(newItem);
 	console.log('Updated queue after adding track:', {
 		newItem,
-		queueLength: trackQueue.length,
-		queue: trackQueue,
+		queueLength: store.trackQueue.length,
+		queue: store.trackQueue,
 		timestamp: new Date().toISOString()
 	});
   
@@ -190,25 +190,25 @@ router.post('/queue', async (req, res) => {
 	  });
 
 	  // Broadcast the updated queue to all connected clients
-	  io.emit('queueUpdated', trackQueue);
+	  io.emit('queueUpdated', [...store.trackQueue]); // Send a new array to ensure changes are detected
 	  console.log('Broadcasted queue update to all clients:', {
-		queueLength: trackQueue.length,
-		queue: trackQueue,
+		queueLength: store.trackQueue.length,
+		queue: store.trackQueue,
 		timestamp: new Date().toISOString()
 	  });
+
+	  return res.json({ success: true, queue: [...store.trackQueue] }); // Send a new array in the response
 	} catch (err) {
 	  console.error('Error adding track to Spotify queue:', err.response?.data || err);
 	  // Remove from in-memory queue if Spotify call fails
-	  trackQueue.pop();
+	  store.trackQueue.pop();
 	  console.log('Removed track from queue after Spotify error:', {
-		queueLength: trackQueue.length,
-		queue: trackQueue,
+		queueLength: store.trackQueue.length,
+		queue: store.trackQueue,
 		timestamp: new Date().toISOString()
 	  });
 	  return res.status(500).json({ error: 'Failed to add track to Spotify queue' });
 	}
-  
-	return res.json({ success: true, queue: trackQueue });
 });
 
 /**
@@ -218,33 +218,48 @@ router.post('/queue', async (req, res) => {
  */
 router.delete('/queue', (req, res) => {
 	const { djToken, index } = req.body;
-	console.log('Delete queue request:', { djToken, index, currentQueue: trackQueue });
+	console.log('Delete queue request:', { 
+		hasDjToken: !!djToken, 
+		index, 
+		queueLength: store.trackQueue.length,
+		currentQueue: store.trackQueue,
+		timestamp: new Date().toISOString()
+	});
 
 	if (!djToken || index === undefined) {
 	  return res.status(400).json({ error: 'Missing djToken or index' });
 	}
   
 	// Look up the session in userSessions
-	const session = userSessions[djToken];
+	const session = store.userSessions[djToken];
 	if (!session) {
 		return res.status(403).json({ error: 'Not authorized as DJ' });
 	}
   
 	// Validate index
 	const idx = parseInt(index, 10);
-	if (isNaN(idx) || idx < 0 || idx >= trackQueue.length) {
+	if (isNaN(idx) || idx < 0 || idx >= store.trackQueue.length) {
 	  return res.status(400).json({ error: 'Invalid index' });
 	}
   
 	// Remove it from the array
-	trackQueue.splice(idx, 1);
-	console.log('Queue after removal:', trackQueue);
+	const removedTrack = store.trackQueue.splice(idx, 1)[0];
+	console.log('Queue after removal:', {
+		removedTrack,
+		queueLength: store.trackQueue.length,
+		queue: store.trackQueue,
+		timestamp: new Date().toISOString()
+	});
   
 	// Broadcast the updated queue to all connected clients
-	io.emit('queueUpdated', trackQueue);
-	console.log('Broadcasted queue update after removal');
+	io.emit('queueUpdated', [...store.trackQueue]); // Send a new array to ensure changes are detected
+	console.log('Broadcasted queue update after removal:', {
+		queueLength: store.trackQueue.length,
+		queue: store.trackQueue,
+		timestamp: new Date().toISOString()
+	});
   
-	return res.json({ success: true, queue: trackQueue });
+	return res.json({ success: true, queue: [...store.trackQueue] }); // Send a new array in the response
 });
 
 // 5) Skip track (DJ only)
@@ -254,7 +269,7 @@ router.post('/skip', async (req, res) => {
     return res.status(400).json({ error: 'Missing djToken or accessToken' });
   }
 	// Look up the session in userSessions
-	const session = userSessions[djToken];
+	const session = store.userSessions[djToken];
 	if (!session) {
 		return res.status(403).json({ error: 'Not authorized as DJ' });
 	}
@@ -283,7 +298,7 @@ router.put('/playback', async (req, res) => {
   }
 
   // Verify DJ authorization
-  const session = userSessions[djToken];
+  const session = store.userSessions[djToken];
   if (!session) {
     return res.status(403).json({ error: 'Not authorized as DJ' });
   }

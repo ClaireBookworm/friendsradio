@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
+function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue, showQueueControls }) {
+	// Debug logging
+	console.log('Controls component render:', {
+		hasDjToken: !!djToken,
+		hasAccessToken: !!accessToken,
+		hasDeviceId: !!deviceId,
+		showQueueControls,
+		queueLength: queue?.length,
+		queue
+	});
+
 	// `queue` and `setQueue` are optional props if you want to
 	// keep a local copy in React for immediate UI updates.
 	// console.log("DJ token: " , djToken)
@@ -16,6 +26,47 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 	const [inputLink, setInputLink] = useState('');
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
+
+	// Listen for queue updates from the server
+	useEffect(() => {
+		if (!socket) {
+			console.log('No socket provided to Controls component');
+			return;
+		}
+
+		console.log('Setting up socket listeners in Controls with initial queue:', queue);
+
+		const handleQueueUpdate = (updatedQueue) => {
+			console.log('Queue update received in Controls:', {
+				updatedQueue,
+				timestamp: new Date().toISOString(),
+				hasSetQueue: !!setQueue
+			});
+			
+			if (!updatedQueue) {
+				console.warn('Received empty or null queue from server');
+				return;
+			}
+
+			if (setQueue) {
+				console.log('Updating queue state with:', updatedQueue);
+				setQueue(updatedQueue);
+			} else {
+				console.warn('setQueue function not provided to Controls component');
+			}
+		};
+
+		socket.on('queueUpdated', handleQueueUpdate);
+
+		// Request initial queue state
+		console.log('Requesting initial queue state from server...');
+		socket.emit('requestQueue');
+
+		return () => {
+			console.log('Cleaning up socket listeners in Controls');
+			socket.off('queueUpdated', handleQueueUpdate);
+		};
+	}, [socket, setQueue]);
 
 	// Helper: parse a Spotify link and return { type: 'track'/'playlist', id: '...' }
 	function parseSpotifyLink(link) {
@@ -64,17 +115,22 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 
 	// Update track names when queue changes
 	useEffect(() => {
+		if (!queue || !accessToken) return;
+		
 		const updateTrackNames = async () => {
+			console.log('Updating track names for queue:', queue);
 			const newTrackNames = {};
 			for (const item of queue) {
 				if (!trackNames[item.uri]) {
 					newTrackNames[item.uri] = await getTrackName(item.uri);
 				}
 			}
-			setTrackNames(prev => ({ ...prev, ...newTrackNames }));
+			if (Object.keys(newTrackNames).length > 0) {
+				setTrackNames(prev => ({ ...prev, ...newTrackNames }));
+			}
 		};
 		updateTrackNames();
-	}, [queue, accessToken]);
+	}, [queue, accessToken, trackNames]);
 
 	// Process pending tracks with exponential backoff
 	const processPendingTracks = async () => {
@@ -128,6 +184,7 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 
 	const handleAddTrack = async (uri) => {
 		try {
+			console.log('Adding track to queue:', uri);
 			const response = await axios.post('http://localhost:4000/spotify/queue', {
 				djToken,
 				accessToken,
@@ -135,9 +192,25 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 				uri
 			});
 
+			console.log('Server response for add track:', response.data);
+
 			if (!response.data.success) {
 				throw new Error('Failed to add track');
 			}
+
+			// Update local queue with the new queue from the server
+			if (response.data.queue) {
+				console.log('Updating local queue with server response:', response.data.queue);
+				setQueue(response.data.queue);
+			} else {
+				console.warn('No queue data in server response');
+			}
+
+			// Force update track names for the new track
+			const trackName = await getTrackName(uri);
+			setTrackNames(prev => ({ ...prev, [uri]: trackName }));
+
+			return response.data;
 		} catch (err) {
 			console.error('Error adding track:', err);
 			throw err;
@@ -170,7 +243,7 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 	const searchTracks = async (query) => {
 		try {
 			const response = await axios.get(
-				`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`,
+				`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,
 				{
 					headers: {
 						Authorization: `Bearer ${accessToken}`
@@ -223,6 +296,7 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 			// If a track was selected from search results, use that
 			if (selectedTrack) {
 				trackUri = selectedTrack.uri;
+				console.log('Using selected track:', selectedTrack);
 			} else {
 				// Otherwise try to parse as a Spotify link
 				const { type, id } = parseSpotifyLink(inputLink.trim());
@@ -239,7 +313,10 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 				}
 			}
 
-			await handleAddTrack(trackUri);
+			console.log('Adding track with URI:', trackUri);
+			const result = await handleAddTrack(trackUri);
+			console.log('Add track result:', result);
+
 			setInputLink('');
 			setSelectedTrack(null);
 			setSearchResults([]);
@@ -272,6 +349,13 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 
 	return (
 		<div className="controls-container">
+			{console.log('Controls render:', { 
+				showQueueControls, 
+				hasQueue: !!queue, 
+				queueLength: queue?.length,
+				queue,
+				trackNames
+			})}
 			<form onSubmit={handleSubmit} className="input-group">
 				<div className="search-container">
 					<input
@@ -340,28 +424,34 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 				</div>
 			)}
 
-			{queue && queue.length > 0 && (
+			{showQueueControls && (
 				<div className="queue-section">
 					<h3 className="heading">DJ Queue Controls</h3>
 					<div className="queue-scroll">
-						<ul className="list-unstyled">
-							{queue.map((item, idx) => (
-								<li key={idx} className="queue-item">
-									<div className="queue-item-content">
-										<span className="queue-number">{idx + 1}.</span>
-										<span className="queue-track">{trackNames[item.uri] || 'Loading...'}</span>
-										<span className="queue-added-by">dj {item.addedBy}</span>
-									</div>
-									<button
-										className="button-remove"
-										onClick={() => handleRemoveTrack(idx)}
-										title="Remove track"
-									>
-										×
-									</button>
-								</li>
-							))}
-						</ul>
+						{!queue || queue.length === 0 ? (
+							<p className="text-muted">No tracks in queue</p>
+						) : (
+							<ul className="list-unstyled">
+								{queue.map((item, idx) => (
+									<li key={idx} className="queue-item">
+										<div className="queue-item-content">
+											<span className="queue-number">{idx + 1}.</span>
+											<span className="queue-track">
+												{trackNames[item.uri] || 'Loading...'}
+											</span>
+											<span className="queue-added-by">dj {item.addedBy}</span>
+										</div>
+										<button
+											className="button-remove"
+											onClick={() => handleRemoveTrack(idx)}
+											title="Remove track"
+										>
+											×
+										</button>
+									</li>
+								))}
+							</ul>
+						)}
 					</div>
 				</div>
 			)}
