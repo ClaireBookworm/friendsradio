@@ -64,12 +64,12 @@ router.get('/callback', async (req, res) => {
     const { access_token, refresh_token } = response.data;
     console.log('Successfully received tokens');
     
-    // Redirect to the frontend with the tokens
-    const frontendUrl = 'http://localhost:2000';
+    // Get the frontend URL from the request origin or environment variable
+    const frontendUrl = process.env.FRONTEND_URL || 'https://friends-radio.vercel.app';
     res.redirect(`${frontendUrl}/?access_token=${access_token}&refresh_token=${refresh_token}`);
   } catch (error) {
     console.error('Error in Spotify callback:', error.response?.data || error);
-    res.redirect('http://localhost:2000/?error=spotify_auth_failed');
+    res.redirect(`${process.env.FRONTEND_URL || 'https://friends-radio.vercel.app'}/?error=spotify_auth_failed`);
   }
 });
 
@@ -144,7 +144,6 @@ router.get('/refresh_token', async (req, res) => {
 
 // 4) Add track to queue (only if DJ)
 router.post('/queue', async (req, res) => {
-	// { djToken, accessToken, deviceId, uri }
 	const { djToken, accessToken, deviceId, uri } = req.body;
 	
 	console.log('Queue request received:', {
@@ -152,7 +151,9 @@ router.post('/queue', async (req, res) => {
 		hasAccessToken: !!accessToken,
 		hasDeviceId: !!deviceId,
 		uri,
-		userSessions: Object.keys(userSessions)
+		queueLength: trackQueue.length,
+		currentQueue: trackQueue,
+		timestamp: new Date().toISOString()
 	});
 
 	if (!djToken || !accessToken || !uri) {
@@ -170,27 +171,45 @@ router.post('/queue', async (req, res) => {
 	// Add to in-memory queue
 	const newItem = { uri, addedBy: session.username };
 	trackQueue.push(newItem);
+	console.log('Updated queue after adding track:', {
+		newItem,
+		queueLength: trackQueue.length,
+		queue: trackQueue,
+		timestamp: new Date().toISOString()
+	});
   
 	// Add to Spotify queue
 	try {
-	  await axios.post('https://api.spotify.com/v1/me/player/queue', null, {
+	  await axios.post(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(uri)}`, null, {
 		headers: {
-		  Authorization: `Bearer ${accessToken}`,
+		  'Authorization': `Bearer ${accessToken}`,
 		},
 		params: {
-		  uri,
 		  device_id: deviceId
 		}
 	  });
+
+	  // Broadcast the updated queue to all connected clients
+	  io.emit('queueUpdated', trackQueue);
+	  console.log('Broadcasted queue update to all clients:', {
+		queueLength: trackQueue.length,
+		queue: trackQueue,
+		timestamp: new Date().toISOString()
+	  });
 	} catch (err) {
 	  console.error('Error adding track to Spotify queue:', err.response?.data || err);
-	  // We won't fail entirely if the Spotify call fails. We'll still keep it in memory queue
+	  // Remove from in-memory queue if Spotify call fails
+	  trackQueue.pop();
+	  console.log('Removed track from queue after Spotify error:', {
+		queueLength: trackQueue.length,
+		queue: trackQueue,
+		timestamp: new Date().toISOString()
+	  });
+	  return res.status(500).json({ error: 'Failed to add track to Spotify queue' });
 	}
   
-	io.emit('queueUpdated', trackQueue);
-  
 	return res.json({ success: true, queue: trackQueue });
-  });
+});
 
 /**
  * DELETE /spotify/queue
@@ -199,6 +218,8 @@ router.post('/queue', async (req, res) => {
  */
 router.delete('/queue', (req, res) => {
 	const { djToken, index } = req.body;
+	console.log('Delete queue request:', { djToken, index, currentQueue: trackQueue });
+
 	if (!djToken || index === undefined) {
 	  return res.status(400).json({ error: 'Missing djToken or index' });
 	}
@@ -217,12 +238,14 @@ router.delete('/queue', (req, res) => {
   
 	// Remove it from the array
 	trackQueue.splice(idx, 1);
+	console.log('Queue after removal:', trackQueue);
   
-	// Emit updated queue
+	// Broadcast the updated queue to all connected clients
 	io.emit('queueUpdated', trackQueue);
+	console.log('Broadcasted queue update after removal');
   
 	return res.json({ success: true, queue: trackQueue });
-  });
+});
 
 // 5) Skip track (DJ only)
 router.post('/skip', async (req, res) => {

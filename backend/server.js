@@ -74,11 +74,33 @@ app.get('/health', (req, res) => {
 
 // Socket.IO
 io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
+  console.log('Socket connected:', {
+    socketId: socket.id,
+    timestamp: new Date().toISOString(),
+    queueLength: trackQueue.length,
+    queue: trackQueue
+  });
 
   // On connect, send both current queue and pending tracks
   socket.emit('queueUpdated', trackQueue);
   socket.emit('pendingTracksUpdated', pendingTracks);
+  console.log('Initial queue state sent to client:', {
+    socketId: socket.id,
+    queueLength: trackQueue.length,
+    queue: trackQueue,
+    timestamp: new Date().toISOString()
+  });
+
+  // Handle request for current queue state
+  socket.on('requestQueue', () => {
+    console.log('Queue requested by client:', {
+      socketId: socket.id,
+      queueLength: trackQueue.length,
+      queue: trackQueue,
+      timestamp: new Date().toISOString()
+    });
+    socket.emit('queueUpdated', trackQueue);
+  });
 
   // Handle chat messages
   socket.on('chat message', (message) => {
@@ -88,7 +110,12 @@ io.on('connection', (socket) => {
 
   // Handle pending tracks updates
   socket.on('pendingTracksUpdate', (tracks) => {
-    console.log('Pending tracks updated:', tracks);
+    console.log('Pending tracks updated:', {
+      socketId: socket.id,
+      tracksLength: tracks.length,
+      tracks,
+      timestamp: new Date().toISOString()
+    });
     pendingTracks = tracks;
     io.emit('pendingTracksUpdated', pendingTracks);
   });
@@ -99,6 +126,14 @@ io.on('connection', (socket) => {
   // Listen for playback updates from DJ
   socket.on('playbackUpdate', (state) => {
     if (userSessions[state.djToken]) {  // Verify it's from the DJ
+      console.log('Playback update from DJ:', {
+        socketId: socket.id,
+        isPlaying: state.isPlaying,
+        currentTrack: state.currentTrack?.name,
+        position: state.position,
+        timestamp: new Date().toISOString()
+      });
+      
       playbackState.isPlaying = state.isPlaying;
       playbackState.currentTrack = state.currentTrack;
       playbackState.position = state.position;
@@ -110,7 +145,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Socket disconnected:', socket.id);
+    console.log('Socket disconnected:', {
+      socketId: socket.id,
+      timestamp: new Date().toISOString()
+    });
   });
 });
 
