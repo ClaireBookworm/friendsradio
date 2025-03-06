@@ -190,12 +190,14 @@ router.post('/queue', async (req, res) => {
 	  });
 
 	  // Broadcast the updated queue to all connected clients
-	  io.emit('queueUpdated', trackQueue);
+	  io.emit('queueUpdated', [...trackQueue]); // Send a new array to ensure changes are detected
 	  console.log('Broadcasted queue update to all clients:', {
 		queueLength: trackQueue.length,
 		queue: trackQueue,
 		timestamp: new Date().toISOString()
 	  });
+
+	  return res.json({ success: true, queue: [...trackQueue] }); // Send a new array in the response
 	} catch (err) {
 	  console.error('Error adding track to Spotify queue:', err.response?.data || err);
 	  // Remove from in-memory queue if Spotify call fails
@@ -207,8 +209,6 @@ router.post('/queue', async (req, res) => {
 	  });
 	  return res.status(500).json({ error: 'Failed to add track to Spotify queue' });
 	}
-  
-	return res.json({ success: true, queue: trackQueue });
 });
 
 /**
@@ -218,7 +218,13 @@ router.post('/queue', async (req, res) => {
  */
 router.delete('/queue', (req, res) => {
 	const { djToken, index } = req.body;
-	console.log('Delete queue request:', { djToken, index, currentQueue: trackQueue });
+	console.log('Delete queue request:', { 
+		hasDjToken: !!djToken, 
+		index, 
+		queueLength: trackQueue.length,
+		currentQueue: trackQueue,
+		timestamp: new Date().toISOString()
+	});
 
 	if (!djToken || index === undefined) {
 	  return res.status(400).json({ error: 'Missing djToken or index' });
@@ -237,14 +243,23 @@ router.delete('/queue', (req, res) => {
 	}
   
 	// Remove it from the array
-	trackQueue.splice(idx, 1);
-	console.log('Queue after removal:', trackQueue);
+	const removedTrack = trackQueue.splice(idx, 1)[0];
+	console.log('Queue after removal:', {
+		removedTrack,
+		queueLength: trackQueue.length,
+		queue: trackQueue,
+		timestamp: new Date().toISOString()
+	});
   
 	// Broadcast the updated queue to all connected clients
-	io.emit('queueUpdated', trackQueue);
-	console.log('Broadcasted queue update after removal');
+	io.emit('queueUpdated', [...trackQueue]); // Send a new array to ensure changes are detected
+	console.log('Broadcasted queue update after removal:', {
+		queueLength: trackQueue.length,
+		queue: trackQueue,
+		timestamp: new Date().toISOString()
+	});
   
-	return res.json({ success: true, queue: trackQueue });
+	return res.json({ success: true, queue: [...trackQueue] }); // Send a new array in the response
 });
 
 // 5) Skip track (DJ only)

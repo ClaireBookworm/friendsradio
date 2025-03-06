@@ -237,7 +237,7 @@ body {
 	flex-direction: column;
 	gap: var(--spacing-md);
 	height: 100%; /* Take full height */
-	overflow: hidden; /* Prevent container overflow */
+	
 }
 
 .input-group {

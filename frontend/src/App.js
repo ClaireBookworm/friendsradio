@@ -177,7 +177,13 @@ function QueueList({ queue, accessToken }) {
 
 function App() {
 	// Socket for real-time chat + queue updates
-	const [socket] = React.useState(() => io('http://localhost:4000'));
+	const [socket] = React.useState(() => io('https://friendsradio.railway.app', {
+		withCredentials: true,
+		transports: ['websocket', 'polling'],
+		extraHeaders: {
+			"Access-Control-Allow-Origin": "*"
+		}
+	}));
  
 	// Spotify tokens (for "listening along")
 	const [accessToken, setAccessToken] = useState('');
@@ -251,7 +257,7 @@ function App() {
 		// If we have a code, exchange it for tokens
 		else if (parsed.code) {
 			console.log('Received code, exchanging for tokens...');
-			axios.post('http://localhost:4000/spotify/callback', {
+			axios.post('https://friendsradio.railway.app/spotify/callback', {
 				code: parsed.code
 			})
 			.then(response => {
@@ -291,7 +297,7 @@ function App() {
 
 		const refreshInterval = setInterval(async () => {
 			try {
-				const response = await axios.get(`http://localhost:4000/spotify/refresh_token?refresh_token=${refreshToken}`);
+				const response = await axios.get(`https://friendsradio.railway.app/spotify/refresh_token?refresh_token=${refreshToken}`);
 				const newAccessToken = response.data.access_token;
 				setAccessToken(newAccessToken);
 				localStorage.setItem('spotify_access_token', newAccessToken);
@@ -324,17 +330,25 @@ function App() {
 	 */
 	const handleDjLogin = async () => {
 		try {
-			const resp = await axios.post('http://localhost:4000/auth/dj-login', {
-				username: djLoginUsername,
-				password: djLoginPassword
-			});
+			const resp = await axios.post('https://friendsradio.railway.app/auth/dj-login', 
+				{
+					username: djLoginUsername,
+					password: djLoginPassword
+				},
+				{
+					withCredentials: true,
+					headers: {
+						'Content-Type': 'application/json',
+						'Access-Control-Allow-Origin': '*'
+					}
+				}
+			);
 			setDjToken(resp.data.token);
 			setDjName(resp.data.username);
 			setShowDjLogin(false);
 		} catch (err) {
 			console.error('DJ login error:', err?.response?.data || err);
 			console.log('DJ login failed');
-			// alert('DJ login failed');
 		}
 	};
 	/**
@@ -343,7 +357,7 @@ function App() {
 	const handleSkip = async () => {
 		if (!djToken) return alert('You must be the DJ to skip!');
 		try {
-			await axios.post('http://localhost:4000/spotify/skip', {
+			await axios.post('https://friendsradio.railway.app/spotify/skip', {
 				djToken,
 				accessToken,
 				deviceId
@@ -393,7 +407,7 @@ function App() {
 				{!accessToken ? (
 					<div className="auth-section">
 						<p>Want to listen in with your own Spotify? Click below to authorize:</p>
-						<a href="http://localhost:4000/spotify/login" className="button">
+						<a href="https://friendsradio.railway.app/spotify/login" className="button">
 							Connect Spotify
 						</a>
 					</div>

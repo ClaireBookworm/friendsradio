@@ -27,25 +27,36 @@ const playbackState = {
   lastUpdate: Date.now()
 };
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'https://friends-radio.vercel.app',
+  'http://localhost:2000',  // Local development
+  'https://railway.com'     // Railway domain
+];
+
 // Express + Socket.IO setup
 const app = express();
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:2000',
-  credentials: true
-}));
-app.use(bodyParser.json());
 
-// const server = http.createServer(app);
-// const io = require('socket.io')(server, {
-//   cors: { origin: '*' },
-// });
+// Enable pre-flight requests for all routes
+app.options('*', cors());
+
+app.use(cors({
+  origin: true, // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(bodyParser.json());
 
 const server = http.createServer(app);
 const io = socketIO(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:2000',
-    credentials: true
-  }
+    origin: true, // Allow all origins
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
+  },
+  transports: ['websocket', 'polling']
 });
 
 // Provide references to other modules if needed

@@ -128,7 +128,8 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 
 	const handleAddTrack = async (uri) => {
 		try {
-			const response = await axios.post('http://localhost:4000/spotify/queue', {
+			console.log('Adding track to queue:', uri);
+			const response = await axios.post('https://friendsradio.railway.app/spotify/queue', {
 				djToken,
 				accessToken,
 				deviceId,
@@ -256,7 +257,7 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 		if (!djToken) return;
 
 		try {
-			const resp = await axios.delete(`http://localhost:4000/spotify/queue`, {
+			const resp = await axios.delete(`https://friendsradio.railway.app/spotify/queue`, {
 				data: {
 					djToken,
 					index
