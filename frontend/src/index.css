@@ -1,0 +1,456 @@
+/* Base styles */
+:root {
+	--color-bg: #0a0a0a;
+	--color-primary: #00ff9d;
+	--color-primary-15: #00ff9d26;
+	--color-primary-33: #00ff9d33;
+	--color-error: #ff6b6b;
+	--color-error-15: #ff6b6b26;
+	--color-error-33: #ff6b6b33;
+	--spacing-xs: 0.3rem;
+	--spacing-sm: 0.5rem;
+	--spacing-md: 0.75rem;
+	--spacing-lg: 0.75rem;
+	--font-mono: Monaco, Consolas, monospace;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+	font-family: var(--font-mono);
+	background-color: var(--color-bg);
+	color: var(--color-primary);
+}
+
+/* Layout */
+.app-container {
+	display: flex;
+	height: 100vh;
+	overflow: hidden;
+}
+
+.column {
+	flex: 1;
+	padding: var(--spacing-lg);
+	padding-top: calc(var(--spacing-lg) * 4); /* More space at the top */
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-md);
+	height: 100%;
+	overflow: hidden;
+}
+
+.divider {
+	border-right: 1px solid var(--color-primary-33);
+	margin: 0 2px;
+}
+
+/* Headers */
+.heading {
+	font-size: 1.3rem;
+	margin-bottom: var(--spacing-md);
+	font-weight: normal;
+	border-bottom: 1px solid var(--color-primary-33);
+	padding-bottom: var(--spacing-sm);
+}
+
+/* Connection Status */
+.connection-status {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacing-sm);
+	padding: var(--spacing-sm) var(--spacing-lg);
+	border-radius: 4px;
+	font-size: 0.9rem;
+	background-color: #00000050;
+	border: 1px solid;
+	transition: all 0.3s ease;
+}
+
+.status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	display: inline-block;
+}
+
+/* Common Components */
+.card {
+	padding: var(--spacing-lg);
+	background-color: var(--color-primary-15);
+	border-radius: 4px;
+	margin-bottom: var(--spacing-sm);
+}
+
+.button {
+	background-color: var(--color-primary-15);
+	color: var(--color-primary);
+	border: 1px solid var(--color-primary-33);
+	padding: var(--spacing-sm) var(--spacing-lg);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	font-size: 0.9rem;
+}
+
+.button:hover:not(:disabled) {
+	background-color: var(--color-primary-33);
+	border-color: var(--color-primary);
+}
+
+.button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.input {
+	background-color: #00000050;
+	border: 1px solid var(--color-primary-33);
+	color: var(--color-primary);
+	padding: var(--spacing-sm);
+	border-radius: 4px;
+	font-family: inherit;
+	width: 100%;
+	max-width: 300px;
+}
+
+/* Queue Styles */
+.queue-container, .queue-section {
+	background-color: #00000030;
+	border-radius: 6px;
+	padding: var(--spacing-lg);
+	margin-top: var(--spacing-sm);
+	max-height: 25vh;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.queue-scroll {
+	flex: 1;
+	overflow-y: auto;
+	margin: 0 calc(var(--spacing-sm) * -1);
+	padding: 0 var(--spacing-sm);
+	min-height: 0;
+	max-height: calc(25vh - 4rem); /* Subtract space for header */
+}
+
+.queue-scroll::-webkit-scrollbar {
+	width: 8px;
+}
+
+.queue-scroll::-webkit-scrollbar-track {
+	background: #00000030;
+}
+
+.queue-scroll::-webkit-scrollbar-thumb {
+	background: var(--color-primary-33);
+	border-radius: 4px;
+}
+
+/* Queue Item Styles */
+.queue-item {
+	padding: var(--spacing-sm);
+	border-bottom: 1px solid var(--color-primary-15);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--spacing-md);
+}
+
+.queue-item:last-child {
+	border-bottom: none;
+}
+
+.queue-item-content {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+	overflow: hidden;
+}
+
+.queue-number {
+	color: var(--color-primary);
+	opacity: 0.7;
+	flex-shrink: 0;
+}
+
+.queue-track {
+	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.queue-added-by {
+	opacity: 0.7;
+	font-size: 0.9em;
+	flex-shrink: 0;
+}
+
+/* Chat Styles */
+.chat-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	gap: var(--spacing-md);
+}
+
+.messages-container {
+	flex: 1;
+	background-color: #00000030;
+	border-radius: 6px;
+	padding: var(--spacing-lg);
+	overflow-y: auto;
+}
+
+.message {
+	margin-bottom: var(--spacing-md);
+}
+
+.message:last-child {
+	margin-bottom: 0;
+}
+
+.username {
+	color: var(--color-primary);
+	font-weight: bold;
+	margin-right: var(--spacing-sm);
+}
+
+.timestamp {
+	opacity: 0.5;
+	font-size: 0.8rem;
+	margin-left: var(--spacing-sm);
+}
+
+.input-container {
+	display: flex;
+	gap: var(--spacing-sm);
+	padding-bottom: var(--spacing-sm);
+}
+
+/* Controls Styles */
+.controls-container {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-md);
+	height: 100%; /* Take full height */
+	overflow: hidden; /* Prevent container overflow */
+}
+
+.input-group {
+	display: flex;
+	gap: var(--spacing-sm);
+	align-items: center;
+}
+
+.error-text {
+	color: var(--color-error);
+	font-size: 0.9rem;
+	margin-top: var(--spacing-sm);
+}
+
+/* Auth Sections */
+.auth-section {
+	margin-bottom: var(--spacing-md);
+}
+
+.dj-login-form {
+	margin-top: var(--spacing-md);
+	padding: var(--spacing-lg);
+	background-color: #00000050;
+	border-radius: 4px;
+}
+
+/* Player Section */
+.player-section {
+	margin-top: var(--spacing-md);
+	padding: var(--spacing-lg);
+	border-top: 1px solid var(--color-primary-33);
+}
+
+/* Spotify Status */
+.spotify-status {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--spacing-lg);
+}
+
+.spotify-info {
+	flex: 1;
+}
+
+.spotify-info p {
+	margin: 0;
+}
+
+.button-danger {
+	background-color: var(--color-error-15);
+	border-color: var(--color-error-33);
+	color: var(--color-error);
+}
+
+.button-danger:hover:not(:disabled) {
+	background-color: var(--color-error-33);
+	border-color: var(--color-error);
+}
+
+/* Button Variations */
+.button-remove {
+	background: none;
+	border: none;
+	color: var(--color-error);
+	font-size: 1.5rem;
+	line-height: 1;
+	padding: 0.2em 0.4em;
+	cursor: pointer;
+	opacity: 0.7;
+	transition: all 0.2s ease;
+	border-radius: 4px;
+}
+
+.button-remove:hover {
+	opacity: 1;
+	background-color: var(--color-error);
+	color: white;
+}
+
+.list-unstyled {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+/* Player Styles */
+.player-container {
+	background-color: #00000030;
+	border-radius: 6px;
+	padding: var(--spacing-lg);
+	margin-top: var(--spacing-sm);
+}
+
+.now-playing-card {
+	background-color: var(--color-primary-15);
+	border-radius: 4px;
+	padding: var(--spacing-lg);
+	margin: var(--spacing-sm) 0;
+}
+
+.track-info {
+	margin-bottom: var(--spacing-md);
+}
+
+.track-name {
+	font-size: 1.2rem;
+	font-weight: bold;
+	margin: 0 0 var(--spacing-xs);
+}
+
+.track-artist {
+	font-size: 1rem;
+	margin: 0 0 var(--spacing-xs);
+	opacity: 0.9;
+}
+
+.track-album {
+	font-size: 0.9rem;
+	font-style: italic;
+	opacity: 0.7;
+	margin: 0;
+}
+
+.player-controls {
+	display: flex;
+	gap: var(--spacing-sm);
+	margin-top: var(--spacing-md);
+}
+
+.status-message {
+	color: var(--color-primary);
+	opacity: 0.8;
+	margin: var(--spacing-sm) 0;
+}
+
+/* Search Styles */
+.search-container {
+	position: relative;
+	flex: 1;
+}
+
+.search-loading {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	padding: var(--spacing-sm);
+	background-color: var(--color-primary-15);
+	border: 1px solid var(--color-primary-33);
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+	color: var(--color-primary);
+	font-size: 0.9rem;
+}
+
+.search-results {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	max-height: 300px;
+	overflow-y: auto;
+	background-color: var(--color-bg);
+	border: 1px solid var(--color-primary-33);
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+	z-index: 10;
+}
+
+.search-result {
+	padding: var(--spacing-sm) var(--spacing-md);
+	cursor: pointer;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	border-bottom: 1px solid var(--color-primary-15);
+	transition: all 0.2s ease;
+}
+
+.search-result:last-child {
+	border-bottom: none;
+}
+
+.search-result:hover {
+	background-color: var(--color-primary-15);
+}
+
+.search-result.selected {
+	background-color: var(--color-primary-15);
+}
+
+.search-result-info {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-xs);
+	flex: 1;
+	min-width: 0;
+}
+
+.search-result-info strong {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.search-result-artist {
+	font-size: 0.9rem;
+	opacity: 0.7;
+}
+
+.search-result-duration {
+	font-size: 0.9rem;
+	opacity: 0.7;
+	margin-left: var(--spacing-md);
+}
