@@ -409,7 +409,7 @@ function App() {
 				{!accessToken ? (
 					<div className="auth-section">
 						<p>Want to listen in with your own Spotify? Click below to authorize:</p>
-						<a href={`${BACKEND_URL}/login`} className="button">
+						<a href={`${BACKEND_URL}/spotify/login`} className="button">
 							Connect Spotify
 						</a>
 					</div>
