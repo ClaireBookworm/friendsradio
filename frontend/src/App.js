@@ -166,7 +166,7 @@ function QueueList({ queue, accessToken }) {
 									<span className="text-muted">{idx + 1}. </span>
 									<strong>{trackNames[item.uri] || 'Loading...'}</strong>
 									<span className="text-muted text-sm">
-									&nbsp; added by {item.addedBy}
+									&nbsp; | added by {item.addedBy}
 									</span>
 								</div>
 							</li>
@@ -480,6 +480,27 @@ function App() {
 					onDeviceIdChange={setDeviceId}
 					socket={socket}
 				/>
+
+				{djToken && (
+					<div className="player-section">
+						<Controls
+							socket={socket}
+							djToken={djToken}
+							accessToken={accessToken}
+							deviceId={deviceId}
+							queue={queue}
+							setQueue={setQueue}
+						/>
+{/* 
+						<button 
+							onClick={handleSkip} 
+							className={`button ${!deviceId ? 'disabled' : ''}`}
+							disabled={!deviceId}
+						>
+							Skip Track
+						</button> */}
+					</div>
+				)}
 			</div>
 		</div>
 	);
