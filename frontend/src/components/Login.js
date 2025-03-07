@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://friendsradio-production.up.railway.app';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000'; // 'https://friendsradio-production.up.railway.app';
 
 function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');

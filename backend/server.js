@@ -27,6 +27,9 @@ const playbackState = {
   lastUpdate: Date.now()
 };
 
+// Track connected users
+const connectedUsers = new Map(); // socketId -> username
+
 // Express + Socket.IO setup
 const app = express();
 
@@ -79,7 +82,8 @@ module.exports = {
   io,
   ROOM_PASSWORD,
   userSessions,
-  playbackState
+  playbackState,
+  connectedUsers
 };
 
 // Register routes
@@ -102,9 +106,26 @@ io.on('connection', (socket) => {
     queue: trackQueue
   });
 
+  // Handle user joining with Spotify username
+  socket.on('user:join', (username) => {
+    if (username) {
+      connectedUsers.set(socket.id, username);
+      // Broadcast updated user list to all clients
+      io.emit('users:update', Array.from(connectedUsers.values()));
+      console.log('User joined:', {
+        socketId: socket.id,
+        username,
+        totalUsers: connectedUsers.size,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // On connect, send both current queue and pending tracks
   socket.emit('queueUpdated', trackQueue);
   socket.emit('pendingTracksUpdated', pendingTracks);
+  // Send current user list to the new connection
+  socket.emit('users:update', Array.from(connectedUsers.values()));
   console.log('Initial queue state sent to client:', {
     socketId: socket.id,
     queueLength: trackQueue.length,
@@ -166,10 +187,19 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('Socket disconnected:', {
-      socketId: socket.id,
-      timestamp: new Date().toISOString()
-    });
+    // Remove user from connected users
+    if (connectedUsers.has(socket.id)) {
+      const username = connectedUsers.get(socket.id);
+      connectedUsers.delete(socket.id);
+      // Broadcast updated user list
+      io.emit('users:update', Array.from(connectedUsers.values()));
+      console.log('User disconnected:', {
+        socketId: socket.id,
+        username,
+        totalUsers: connectedUsers.size,
+        timestamp: new Date().toISOString()
+      });
+    }
   });
 });
 

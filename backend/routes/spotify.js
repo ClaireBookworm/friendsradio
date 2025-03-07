@@ -23,7 +23,8 @@ router.get('/login', (req, res) => {
     'user-read-currently-playing',
     'streaming',
     'user-read-email',
-    'user-read-private'
+    'user-read-private',
+    'app-remote-control'
   ].join(' ');
 
   const qs = querystring.stringify({
@@ -170,23 +171,30 @@ router.post('/queue', async (req, res) => {
   
 	// Add to in-memory queue
 	const newItem = { uri, addedBy: session.username };
-	trackQueue.push(newItem);
-	console.log('Updated queue after adding track:', {
+	
+	// Add to Spotify queue
+	try {
+	  // Add to Spotify queue first
+	  const spotifyQueueResponse = await axios.post('https://api.spotify.com/v1/me/player/queue', null, {
+		headers: {
+		  'Authorization': `Bearer ${accessToken}`,
+		  'Content-Type': 'application/json'
+		},
+		params: {
+		  uri: uri,
+		  device_id: deviceId
+		}
+	  });
+
+	  console.log('Spotify queue response:', spotifyQueueResponse.status);
+
+	  // If Spotify queue addition was successful, add to our in-memory queue
+	  trackQueue.push(newItem);
+	  console.log('Updated queue after adding track:', {
 		newItem,
 		queueLength: trackQueue.length,
 		queue: trackQueue,
 		timestamp: new Date().toISOString()
-	});
-  
-	// Add to Spotify queue
-	try {
-	  await axios.post(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(uri)}`, null, {
-		headers: {
-		  'Authorization': `Bearer ${accessToken}`,
-		},
-		params: {
-		  device_id: deviceId
-		}
 	  });
 
 	  // Broadcast the updated queue to all connected clients
@@ -199,15 +207,16 @@ router.post('/queue', async (req, res) => {
 
 	  return res.json({ success: true, queue: [...trackQueue] }); // Send a new array in the response
 	} catch (err) {
-	  console.error('Error adding track to Spotify queue:', err.response?.data || err);
-	  // Remove from in-memory queue if Spotify call fails
-	  trackQueue.pop();
-	  console.log('Removed track from queue after Spotify error:', {
-		queueLength: trackQueue.length,
-		queue: trackQueue,
-		timestamp: new Date().toISOString()
+	  console.error('Error adding track to Spotify queue:', {
+		error: err.response?.data || err,
+		status: err.response?.status,
+		statusText: err.response?.statusText
 	  });
-	  return res.status(500).json({ error: 'Failed to add track to Spotify queue' });
+	  return res.status(500).json({ 
+		error: 'Failed to add track to Spotify queue',
+		details: err.response?.data || err.message,
+		status: err.response?.status
+	  });
 	}
 });
 

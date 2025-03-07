@@ -5,6 +5,7 @@ import axios from 'axios';
 import Controls from './components/Controls';
 import Player from './components/Player';
 import Chat from './components/Chat';
+import OnlineUsers from './components/OnlineUsers';
 import './index.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://friendsradio-production.up.railway.app";
@@ -120,6 +121,8 @@ const styles = {
 // A small component for displaying the queued tracks
 function QueueList({ queue, accessToken }) {
 	const [trackNames, setTrackNames] = useState({});
+	const [currentTrackUri, setCurrentTrackUri] = useState(null);
+	const [playedSongs, setPlayedSongs] = useState([]);
 
 	// Function to get track name from Spotify
 	const getTrackName = async (uri) => {
@@ -152,15 +155,48 @@ function QueueList({ queue, accessToken }) {
 		updateTrackNames();
 	}, [queue, accessToken]);
 
+	// Listen for player state changes to track played songs
+	useEffect(() => {
+		const checkCurrentTrack = async () => {
+			try {
+				const response = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
+					headers: {
+						Authorization: `Bearer ${accessToken}`
+					}
+				});
+
+				if (response.data && response.data.item) {
+					const newTrackUri = response.data.item.uri;
+					if (newTrackUri !== currentTrackUri) {
+						// If we have a previous track, mark it as played
+						if (currentTrackUri) {
+							setPlayedSongs(prev => [...prev, currentTrackUri]);
+						}
+						setCurrentTrackUri(newTrackUri);
+					}
+				}
+			} catch (error) {
+				console.error('Error checking current track:', error);
+			}
+		};
+
+		// Check every 5 seconds for track changes
+		const interval = setInterval(checkCurrentTrack, 5000);
+		return () => clearInterval(interval);
+	}, [accessToken, currentTrackUri]);
+
+	// Filter out played songs from the queue
+	const unplayedQueue = queue.filter(item => !playedSongs.includes(item.uri));
+
 	return (
 		<div className="queue-container">
 			<h3 className="heading">Current Queue</h3>
 			<div className="queue-scroll">
-				{queue.length === 0 ? (
+				{unplayedQueue.length === 0 ? (
 					<p className="text-muted">No tracks in queue</p>
 				) : (
 					<ul className="list-unstyled">
-						{queue.map((item, idx) => (
+						{unplayedQueue.map((item, idx) => (
 							<li key={idx} className="queue-item">
 								<div>
 									<span className="text-muted">{idx + 1}. </span>
@@ -380,12 +416,22 @@ function App() {
 		setDeviceId('');
 	};
 
+	// Add effect to emit user:join when spotifyUsername changes
+	useEffect(() => {
+		if (spotifyUsername && socket.connected) {
+			socket.emit('user:join', spotifyUsername);
+		}
+	}, [spotifyUsername, socket.connected]);
+
 	return (
 		<div className="app-container">
 			{/* LEFT COLUMN: Chat */}
 			<div className="column">
 				<h2 className="heading">Live Chat</h2>
 				<Chat socket={socket} spotifyUsername={spotifyUsername} />
+				
+				{/* Add OnlineUsers component */}
+				<OnlineUsers socket={socket} />
 			</div>
 
 			<div className="divider" />

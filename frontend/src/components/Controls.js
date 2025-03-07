@@ -21,6 +21,8 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 	const [inputLink, setInputLink] = useState('');
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
+	const [currentTrackUri, setCurrentTrackUri] = useState(null);
+	const [playedSongs, setPlayedSongs] = useState([]);
 
 	// Helper: parse a Spotify link and return { type: 'track'/'playlist', id: '...' }
 	function parseSpotifyLink(link) {
@@ -303,6 +305,46 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 		}
 	};
 
+	// Add effect to track currently playing song
+	useEffect(() => {
+		const checkCurrentTrack = async () => {
+			try {
+				const response = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
+					headers: {
+						Authorization: `Bearer ${accessToken}`
+					}
+				});
+
+				if (response.data && response.data.item) {
+					const newTrackUri = response.data.item.uri;
+					if (newTrackUri !== currentTrackUri) {
+						// If we have a previous track, remove it from the queue and trackNames
+						if (currentTrackUri) {
+							// Remove from trackNames cache
+							setTrackNames(prev => {
+								const newTrackNames = { ...prev };
+								delete newTrackNames[currentTrackUri];
+								return newTrackNames;
+							});
+
+							// Remove from queue
+							setQueue(prev => prev.filter(item => item.uri !== currentTrackUri));
+
+							// Notify other clients about the queue update
+							socket.emit('queueUpdated', queue.filter(item => item.uri !== currentTrackUri));
+						}
+						setCurrentTrackUri(newTrackUri);
+					}
+				}
+			} catch (error) {
+				console.error('Error checking current track:', error);
+			}
+		};
+
+		const interval = setInterval(checkCurrentTrack, 5000);
+		return () => clearInterval(interval);
+	}, [accessToken, currentTrackUri, queue, socket]);
+
 	return (
 		<div className="controls-container">
 			<form onSubmit={handleSubmit} className="input-group">
@@ -378,22 +420,24 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 					<h3 className="heading">DJ Queue Controls</h3>
 					<div className="queue-scroll">
 						<ul className="list-unstyled">
-							{queue.map((item, idx) => (
-								<li key={idx} className="queue-item">
-									<div className="queue-item-content">
-										<span className="queue-number">{idx + 1}.</span>
-										<span className="queue-track">{trackNames[item.uri] || 'Loading...'}</span>
-										<span className="queue-added-by">dj {item.addedBy}</span>
-									</div>
-									<button
-										className="button-remove"
-										onClick={() => handleRemoveTrack(idx)}
-										title="Remove track"
-									>
-										×
-									</button>
-								</li>
-							))}
+							{queue
+								.filter(item => !playedSongs.includes(item.uri))
+								.map((item, idx) => (
+									<li key={idx} className="queue-item">
+										<div className="queue-item-content">
+											<span className="queue-number">{idx + 1}.</span>
+											<span className="queue-track">{trackNames[item.uri] || 'Loading...'}</span>
+											<span className="queue-added-by">dj {item.addedBy}</span>
+										</div>
+										<button
+											className="button-remove"
+											onClick={() => handleRemoveTrack(idx)}
+											title="Remove track"
+										>
+											×
+										</button>
+									</li>
+								))}
 						</ul>
 					</div>
 				</div>
