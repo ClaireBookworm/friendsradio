@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://friendsradio-production.up.railway.app';
+
 function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 	// `queue` and `setQueue` are optional props if you want to
 	// keep a local copy in React for immediate UI updates.
-	// console.log("DJ token: " , djToken)
-	// console.log("Access token: " , accessToken)
-	// console.log("Device ID: " , deviceId)
+	console.log("Controls component initialized with:", {
+		BACKEND_URL,
+		hasDjToken: !!djToken,
+		hasAccessToken: !!accessToken,
+		deviceId
+	});
 	
 
 	const [trackNames, setTrackNames] = useState({});
@@ -84,7 +89,7 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 		const track = pendingTracks[0];
 		
 		try {
-			await axios.post('http://localhost:4000/spotify/queue', {
+			await axios.post(`${BACKEND_URL}/spotify/queue`, {
 				djToken,
 				accessToken,
 				deviceId,
@@ -128,13 +133,27 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 
 	const handleAddTrack = async (uri) => {
 		try {
-			console.log('Adding track to queue:', uri);
-			const response = await axios.post('https://friendsradio.railway.app/spotify/queue', {
+			console.log('Adding track to queue:', {
+				uri,
+				BACKEND_URL,
+				hasDjToken: !!djToken,
+				hasAccessToken: !!accessToken,
+				deviceId
+			});
+			
+			const response = await axios.post(`${BACKEND_URL}/spotify/queue`, {
 				djToken,
 				accessToken,
 				deviceId,
 				uri
+			}, {
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json'
+				}
 			});
+
+			console.log('Add track response:', response.data);
 
 			if (!response.data.success) {
 				throw new Error('Failed to add track');
@@ -257,12 +276,25 @@ function Controls({ socket, djToken, accessToken, deviceId, queue, setQueue }) {
 		if (!djToken) return;
 
 		try {
-			const resp = await axios.delete(`https://friendsradio.railway.app/spotify/queue`, {
+			console.log('Removing track:', {
+				index,
+				BACKEND_URL,
+				hasDjToken: !!djToken
+			});
+
+			const resp = await axios.delete(`${BACKEND_URL}/spotify/queue`, {
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json'
+				},
 				data: {
 					djToken,
 					index
 				}
 			});
+			
+			console.log('Remove track response:', resp.data);
+			
 			if (resp.data.queue) {
 				setQueue && setQueue(resp.data.queue);
 			}

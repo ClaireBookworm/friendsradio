@@ -30,17 +30,31 @@ const playbackState = {
 // Express + Socket.IO setup
 const app = express();
 
-// Enable pre-flight requests for all routes
-app.options('*', cors());
-
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://friends-radio.vercel.app';
+console.log('Using FRONTEND_URL:', FRONTEND_URL);
 
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    url: req.url,
+    origin: req.headers.origin,
+    headers: req.headers,
+    timestamp: new Date().toISOString()
+  });
+  next();
+});
+
+// CORS middleware configuration
 app.use(cors({
   origin: FRONTEND_URL,
-  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Length', 'X-Requested-With', 'Accept'],
+  credentials: false // Set to false since we're not using cookies
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 
 app.use(bodyParser.json());
 
@@ -49,8 +63,8 @@ const io = socketIO(server, {
   cors: {
     origin: FRONTEND_URL,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"]
+    credentials: false, // Set to false since we're not using cookies
+    allowedHeaders: ['Content-Type', 'Authorization', 'Content-Length', 'X-Requested-With', 'Accept']
   },
   transports: ['websocket', 'polling']
 });
