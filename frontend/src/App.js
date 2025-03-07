@@ -181,10 +181,9 @@ function QueueList({ queue, accessToken }) {
 function App() {
 	// Socket for real-time chat + queue updates
 	const [socket] = React.useState(() => io(BACKEND_URL, {
-		withCredentials: true,
 		transports: ['websocket', 'polling'],
 		extraHeaders: {
-			"Access-Control-Allow-Origin": "*"
+			"Access-Control-Allow-Origin": FRONTEND_URL
 		}
 	}));
  
@@ -339,7 +338,6 @@ function App() {
 					password: djLoginPassword
 				},
 				{
-					withCredentials: true,
 					headers: {
 						'Content-Type': 'application/json'
 					}

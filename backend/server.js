@@ -33,8 +33,10 @@ const app = express();
 // Enable pre-flight requests for all routes
 app.options('*', cors());
 
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://friends-radio.vercel.app';
+
 app.use(cors({
-  origin: true, // Allow all origins
+  origin: FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -45,7 +47,7 @@ app.use(bodyParser.json());
 const server = http.createServer(app);
 const io = socketIO(server, {
   cors: {
-    origin: true, // Allow all origins
+    origin: FRONTEND_URL,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"]
