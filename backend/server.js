@@ -27,12 +27,6 @@ const playbackState = {
   lastUpdate: Date.now()
 };
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'https://friends-radio.vercel.app',
-  'http://localhost:2000',  // Local development
-  'https://railway.app'     // Railway domain
-];
-
 // Express + Socket.IO setup
 const app = express();
 
