@@ -169,51 +169,54 @@ router.post('/queue', async (req, res) => {
 		return res.status(403).json({ error: 'Not authorized as DJ' });
 	}
   
-	// Add to in-memory queue
+	// Add to in-memory queue first
 	const newItem = { uri, addedBy: session.username };
+	trackQueue.push(newItem);
 	
-	// Add to Spotify queue
 	try {
-	  // Add to Spotify queue first
-	  const spotifyQueueResponse = await axios.post('https://api.spotify.com/v1/me/player/queue', null, {
-		headers: {
-		  'Authorization': `Bearer ${accessToken}`,
-		  'Content-Type': 'application/json'
-		},
-		params: {
-		  uri: uri,
-		  device_id: deviceId
-		}
-	  });
-
-	  console.log('Spotify queue response:', spotifyQueueResponse.status);
-
-	  // If Spotify queue addition was successful, add to our in-memory queue
-	  trackQueue.push(newItem);
-	  console.log('Updated queue after adding track:', {
-		newItem,
-		queueLength: trackQueue.length,
-		queue: trackQueue,
-		timestamp: new Date().toISOString()
-	  });
-
-	  // Broadcast the updated queue to all connected clients
-	  io.emit('queueUpdated', [...trackQueue]); // Send a new array to ensure changes are detected
+	  // Broadcast the updated queue to all connected clients BEFORE trying Spotify API
+	  // This ensures the UI updates even if Spotify API calls fail for some users
+	  io.emit('queueUpdated', [...trackQueue]);
 	  console.log('Broadcasted queue update to all clients:', {
 		queueLength: trackQueue.length,
 		queue: trackQueue,
 		timestamp: new Date().toISOString()
 	  });
 
-	  return res.json({ success: true, queue: [...trackQueue] }); // Send a new array in the response
+	  // Get all connected user sessions that have Spotify tokens
+	  const connectedUsers = Object.values(userSessions).filter(user => user.accessToken);
+	  
+	  // Try to add to each user's Spotify queue
+	  for (const user of connectedUsers) {
+		try {
+		  await axios.post('https://api.spotify.com/v1/me/player/queue', null, {
+			headers: {
+			  'Authorization': `Bearer ${user.accessToken}`,
+			  'Content-Type': 'application/json'
+			},
+			params: {
+			  uri: uri,
+			  device_id: user.deviceId
+			}
+		  });
+		  console.log(`Added track to queue for user ${user.username}`);
+		} catch (error) {
+		  console.error(`Failed to add track to queue for user ${user.username}:`, error.response?.data || error);
+		  // Continue with other users even if one fails
+		}
+	  }
+
+	  return res.json({ success: true, queue: [...trackQueue] });
 	} catch (err) {
-	  console.error('Error adding track to Spotify queue:', {
+	  console.error('Error in queue management:', {
 		error: err.response?.data || err,
 		status: err.response?.status,
 		statusText: err.response?.statusText
 	  });
+	  // Note: We don't remove the track from trackQueue even if Spotify API calls fail
+	  // This keeps the UI consistent and allows for retry mechanisms
 	  return res.status(500).json({ 
-		error: 'Failed to add track to Spotify queue',
+		error: 'Failed to manage queue',
 		details: err.response?.data || err.message,
 		status: err.response?.status
 	  });

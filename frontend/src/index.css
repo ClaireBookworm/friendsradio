@@ -236,7 +236,7 @@ body {
 
 .message {
 	margin-bottom: var(--spacing-md);
-	animation: fadeIn 0.3s ease;
+	animation: fadeIn 0.1s ease;
 }
 
 .message:last-child {

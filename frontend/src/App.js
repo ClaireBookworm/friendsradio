@@ -416,12 +416,21 @@ function App() {
 		setDeviceId('');
 	};
 
-	// Add effect to emit user:join when spotifyUsername changes
+	// Add effect to emit user:join and handle token/device updates
 	useEffect(() => {
 		if (spotifyUsername && socket.connected) {
+			// First emit just the username
 			socket.emit('user:join', spotifyUsername);
+			
+			// Then update tokens and device ID if available
+			if (accessToken) {
+				socket.emit('token:update', { accessToken });
+			}
+			if (deviceId) {
+				socket.emit('device:update', { deviceId });
+			}
 		}
-	}, [spotifyUsername, socket.connected]);
+	}, [spotifyUsername, socket.connected, accessToken, deviceId]);
 
 	return (
 		<div className="app-container">

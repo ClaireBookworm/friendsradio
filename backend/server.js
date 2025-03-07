@@ -99,33 +99,62 @@ app.get('/health', (req, res) => {
 
 // Socket.IO
 io.on('connection', (socket) => {
-  console.log('Socket connected:', {
-    socketId: socket.id,
-    timestamp: new Date().toISOString(),
-    queueLength: trackQueue.length,
-    queue: trackQueue
+  console.log('New client connected');
+  
+  // Handle user joining
+  socket.on('user:join', (username) => {
+    console.log('User joined:', username);
+    
+    // Store username in connectedUsers
+    connectedUsers.set(socket.id, username);
+    
+    // Create user session
+    userSessions[socket.id] = {
+      username,
+      socketId: socket.id
+    };
+    
+    // Broadcast updated user list (just usernames)
+    const users = Array.from(connectedUsers.values());
+    io.emit('users:updated', users);
   });
 
-  // Handle user joining with Spotify username
-  socket.on('user:join', (username) => {
-    if (username) {
-      connectedUsers.set(socket.id, username);
-      // Broadcast updated user list to all clients
-      io.emit('users:update', Array.from(connectedUsers.values()));
-      console.log('User joined:', {
-        socketId: socket.id,
-        username,
-        totalUsers: connectedUsers.size,
-        timestamp: new Date().toISOString()
-      });
+  // Handle token updates separately
+  socket.on('token:update', ({ accessToken }) => {
+    if (userSessions[socket.id]) {
+      userSessions[socket.id].accessToken = accessToken;
+    }
+  });
+
+  // Handle device ID updates separately
+  socket.on('device:update', ({ deviceId }) => {
+    if (userSessions[socket.id]) {
+      userSessions[socket.id].deviceId = deviceId;
+    }
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+    
+    // Remove from sessions and connected users
+    if (userSessions[socket.id]) {
+      delete userSessions[socket.id];
+      connectedUsers.delete(socket.id);
+      
+      // Broadcast updated user list (just usernames)
+      const users = Array.from(connectedUsers.values());
+      io.emit('users:updated', users);
     }
   });
 
   // On connect, send both current queue and pending tracks
   socket.emit('queueUpdated', trackQueue);
   socket.emit('pendingTracksUpdated', pendingTracks);
-  // Send current user list to the new connection
+  
+  // Send current user list to the new connection (just usernames)
   socket.emit('users:update', Array.from(connectedUsers.values()));
+  
   console.log('Initial queue state sent to client:', {
     socketId: socket.id,
     queueLength: trackQueue.length,
@@ -183,22 +212,6 @@ io.on('connection', (socket) => {
       
       // Broadcast to all other clients
       socket.broadcast.emit('playbackState', playbackState);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    // Remove user from connected users
-    if (connectedUsers.has(socket.id)) {
-      const username = connectedUsers.get(socket.id);
-      connectedUsers.delete(socket.id);
-      // Broadcast updated user list
-      io.emit('users:update', Array.from(connectedUsers.values()));
-      console.log('User disconnected:', {
-        socketId: socket.id,
-        username,
-        totalUsers: connectedUsers.size,
-        timestamp: new Date().toISOString()
-      });
     }
   });
 });
