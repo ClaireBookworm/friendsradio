@@ -440,7 +440,7 @@ function App() {
 				<Chat socket={socket} spotifyUsername={spotifyUsername} />
 				
 				{/* Add OnlineUsers component */}
-				<OnlineUsers socket={socket} />
+				<OnlineUsers socket={socket} spotifyUsername={spotifyUsername} />
 			</div>
 
 			<div className="divider" />

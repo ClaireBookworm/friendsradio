@@ -108,6 +108,35 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
   useEffect(() => {
     if (!socket || !player || !isReady) return;
 
+    // Listen for playback state changes from DJ
+    socket.on('playback:stateChange', async ({ action }) => {
+      if (!player) return;
+      
+      try {
+        if (action === 'play') {
+          await player.resume();
+          setIsPlaying(true);
+        } else if (action === 'pause') {
+          await player.pause();
+          setIsPlaying(false);
+        }
+      } catch (error) {
+        console.error('Error syncing playback state:', error);
+      }
+    });
+
+    // Listen for skip commands from DJ
+    socket.on('playback:skip', async () => {
+      if (!player) return;
+      
+      try {
+        await player.nextTrack();
+      } catch (error) {
+        console.error('Error skipping track:', error);
+      }
+    });
+
+    // Listen for general playback state updates
     socket.on('playbackState', async (state) => {
       if (!state.currentTrack) return;
 
@@ -117,29 +146,6 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
           // Calculate time drift since last update
           const drift = (Date.now() - state.lastUpdate) / 1000;
           const position = state.position + (drift * 1000);
-
-          // First, clear the current queue
-          try {
-            await fetch('https://api.spotify.com/v1/me/player/queue', {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`
-              }
-            }).then(async (response) => {
-              const queueData = await response.json();
-              // Clear each track in the queue by skipping
-              for (let i = 0; i < queueData.queue.length; i++) {
-                await fetch('https://api.spotify.com/v1/me/player/next', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${accessToken}`
-                  }
-                });
-              }
-            });
-          } catch (error) {
-            console.error('Error clearing queue:', error);
-          }
 
           // Resume playback at the current position with the current track
           await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
@@ -154,9 +160,14 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
             })
           });
 
-          // If it should be paused, pause after seeking
-          if (!state.isPlaying) {
-            await player.pause();
+          // Update local state
+          setIsPlaying(state.isPlaying);
+          if (state.currentTrack) {
+            setCurrentTrack({
+              name: state.currentTrack.name,
+              artist: state.currentTrack.artists[0].name,
+              album: state.currentTrack.album.name
+            });
           }
         }
       } catch (error) {
@@ -165,6 +176,8 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
     });
 
     return () => {
+      socket.off('playback:stateChange');
+      socket.off('playback:skip');
       socket.off('playbackState');
     };
   }, [socket, player, isReady, deviceId, accessToken, djToken]);

@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
-function OnlineUsers({ socket }) {
+function OnlineUsers({ socket, spotifyUsername }) {
   const [onlineUsers, setOnlineUsers] = useState([]);
 
   useEffect(() => {
     // Listen for user list updates
-    socket.on('users:update', (users) => {
+    socket.on('users:updated', (users) => {
       setOnlineUsers(users);
     });
 
     return () => {
-      socket.off('users:update');
+      socket.off('users:updated');
     };
   }, [socket]);
 
@@ -25,7 +25,7 @@ function OnlineUsers({ socket }) {
             {onlineUsers.map((username, idx) => (
               <li key={idx} className="user-item">
                 <span className="status-dot" />
-                {username}
+                {username === spotifyUsername ? `${username} (you)` : username}
               </li>
             ))}
           </ul>

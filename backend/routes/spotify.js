@@ -280,20 +280,36 @@ router.post('/skip', async (req, res) => {
   if (!djToken || !accessToken) {
     return res.status(400).json({ error: 'Missing djToken or accessToken' });
   }
-	// Look up the session in userSessions
-	const session = userSessions[djToken];
-	if (!session) {
-		return res.status(403).json({ error: 'Not authorized as DJ' });
-	}
+  // Look up the session in userSessions
+  const session = userSessions[djToken];
+  if (!session) {
+    return res.status(403).json({ error: 'Not authorized as DJ' });
+  }
+
   try {
-    await axios.post('https://api.spotify.com/v1/me/player/next', null, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-      params: {
-        device_id: deviceId
+    // Get all connected user sessions that have Spotify tokens
+    const connectedUsers = Object.values(userSessions).filter(user => user.accessToken);
+    
+    // Try to skip for each connected user
+    for (const user of connectedUsers) {
+      try {
+        await axios.post('https://api.spotify.com/v1/me/player/next', null, {
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`
+          },
+          params: {
+            device_id: user.deviceId
+          }
+        });
+        console.log(`Skipped track for user ${user.username}`);
+      } catch (error) {
+        console.error(`Failed to skip track for user ${user.username}:`, error.response?.data || error);
+        // Continue with other users even if one fails
       }
-    });
+    }
+
+    // Broadcast the skip action to all clients
+    io.emit('playback:skip');
     return res.json({ success: true });
   } catch (err) {
     console.error('Error skipping track:', err.response?.data || err);
@@ -316,18 +332,29 @@ router.put('/playback', async (req, res) => {
   }
 
   try {
-    // Determine the endpoint based on the action
-    const endpoint = action === 'play' ? 'play' : 'pause';
+    // Get all connected user sessions that have Spotify tokens
+    const connectedUsers = Object.values(userSessions).filter(user => user.accessToken);
     
-    await axios.put(`https://api.spotify.com/v1/me/player/${endpoint}`, null, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-      params: {
-        device_id: deviceId
+    // Try to update playback state for each connected user
+    for (const user of connectedUsers) {
+      try {
+        await axios.put(`https://api.spotify.com/v1/me/player/${action}`, null, {
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`
+          },
+          params: {
+            device_id: user.deviceId
+          }
+        });
+        console.log(`${action} successful for user ${user.username}`);
+      } catch (error) {
+        console.error(`Failed to ${action} for user ${user.username}:`, error.response?.data || error);
+        // Continue with other users even if one fails
       }
-    });
+    }
 
+    // Broadcast the playback state change to all clients
+    io.emit('playback:stateChange', { action });
     return res.json({ success: true, action });
   } catch (err) {
     console.error(`Error ${action}ing track:`, err.response?.data || err);

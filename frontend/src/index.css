@@ -272,7 +272,7 @@ body {
 	padding: var(--spacing-sm);
 	background-color: #00000030;
 	border-radius: 6px;
-	margin-top: auto;
+	margin-top: 1rem;
 }
 
 /* Controls Styles */
