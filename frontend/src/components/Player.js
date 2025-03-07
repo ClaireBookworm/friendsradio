@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://friendsradio-production.up.railway.app';
+
 function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
   const [player, setPlayer] = useState(null);
   const [deviceId, setDeviceId] = useState('');
@@ -175,7 +177,7 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
 
     try {
       const action = isPlaying ? 'pause' : 'play';
-      await axios.put('http://localhost:4000/spotify/playback', {
+      await axios.put(`${BACKEND_URL}/spotify/playback`, {
         djToken,
         accessToken,
         deviceId,
@@ -195,7 +197,7 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
     }
 
     try {
-      await axios.post('http://localhost:4000/spotify/skip', {
+      await axios.post(`${BACKEND_URL}/spotify/skip`, {
         djToken,
         accessToken,
         deviceId

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://friendsradio-production.up.railway.app';
+
 function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
     try {
-      const resp = await axios.post('http://localhost:4000/auth/dj-login', {
+      const resp = await axios.post(`${BACKEND_URL}/auth/dj-login`, {
         username,
         password
       });
