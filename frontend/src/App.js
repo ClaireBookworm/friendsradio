@@ -7,7 +7,7 @@ import Player from './components/Player';
 import Chat from './components/Chat';
 import './index.css';
 
-const BACKEND_URL = 'https://friendsradio.railway.app';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://friendsradio-production.up.railway.app";
 const FRONTEND_URL = process.env.REACT_APP_FRONTEND_URL || 'https://friends-radio.vercel.app';
 
 // Styles object for reusable components
