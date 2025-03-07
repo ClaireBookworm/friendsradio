@@ -7,6 +7,9 @@ import Player from './components/Player';
 import Chat from './components/Chat';
 import './index.css';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://friendsradio-production.up.railway.app';
+const FRONTEND_URL = process.env.REACT_APP_FRONTEND_URL || 'https://friends-radio.vercel.app';
+
 // Styles object for reusable components
 const styles = {
 	container: {
@@ -177,7 +180,7 @@ function QueueList({ queue, accessToken }) {
 
 function App() {
 	// Socket for real-time chat + queue updates
-	const [socket] = React.useState(() => io('https://friendsradio.railway.app', {
+	const [socket] = React.useState(() => io(BACKEND_URL, {
 		withCredentials: true,
 		transports: ['websocket', 'polling'],
 		extraHeaders: {
@@ -257,7 +260,7 @@ function App() {
 		// If we have a code, exchange it for tokens
 		else if (parsed.code) {
 			console.log('Received code, exchanging for tokens...');
-			axios.post('https://friendsradio.railway.app/spotify/callback', {
+			axios.post(`${BACKEND_URL}/spotify/callback`, {
 				code: parsed.code
 			})
 			.then(response => {
@@ -297,14 +300,14 @@ function App() {
 
 		const refreshInterval = setInterval(async () => {
 			try {
-				const response = await axios.get(`https://friendsradio.railway.app/spotify/refresh_token?refresh_token=${refreshToken}`);
+				const response = await axios.get(`${BACKEND_URL}/spotify/refresh_token?refresh_token=${refreshToken}`);
 				const newAccessToken = response.data.access_token;
 				setAccessToken(newAccessToken);
 				localStorage.setItem('spotify_access_token', newAccessToken);
 			} catch (error) {
 				console.error('Error refreshing token:', error);
 			}
-		}, 50 * 60 * 1000); // Refresh every 50 minutes
+		}, 50 * 60 * 1000);
 
 		return () => clearInterval(refreshInterval);
 	}, [refreshToken]);
@@ -330,7 +333,7 @@ function App() {
 	 */
 	const handleDjLogin = async () => {
 		try {
-			const resp = await axios.post('https://friendsradio.railway.app/auth/dj-login', 
+			const resp = await axios.post(`${BACKEND_URL}/auth/dj-login`, 
 				{
 					username: djLoginUsername,
 					password: djLoginPassword
@@ -338,8 +341,7 @@ function App() {
 				{
 					withCredentials: true,
 					headers: {
-						'Content-Type': 'application/json',
-						'Access-Control-Allow-Origin': '*'
+						'Content-Type': 'application/json'
 					}
 				}
 			);
@@ -407,7 +409,7 @@ function App() {
 				{!accessToken ? (
 					<div className="auth-section">
 						<p>Want to listen in with your own Spotify? Click below to authorize:</p>
-						<a href="https://friendsradio.railway.app/spotify/login" className="button">
+						<a href={`${BACKEND_URL}/spotify/login`} className="button">
 							Connect Spotify
 						</a>
 					</div>
