@@ -3,7 +3,7 @@ const router = express.Router();
 const querystring = require('querystring');
 const axios = require('axios');
 
-const { userSessions, trackQueue, io } = require('../server');
+const { userSessions, trackQueue, playedTracks, io } = require('../server');
 
 const {
   SPOTIFY_CLIENT_ID,
@@ -176,10 +176,14 @@ router.post('/queue', async (req, res) => {
 	try {
 	  // Broadcast the updated queue to all connected clients BEFORE trying Spotify API
 	  // This ensures the UI updates even if Spotify API calls fail for some users
-	  io.emit('queueUpdated', [...trackQueue]);
+	  io.emit('queueUpdated', {
+            queue: [...trackQueue],
+            playedTracks: [...playedTracks]
+          });
 	  console.log('Broadcasted queue update to all clients:', {
 		queueLength: trackQueue.length,
 		queue: trackQueue,
+		playedTracks,
 		timestamp: new Date().toISOString()
 	  });
 
@@ -206,20 +210,10 @@ router.post('/queue', async (req, res) => {
 		}
 	  }
 
-	  return res.json({ success: true, queue: [...trackQueue] });
+	  return res.json({ success: true, queue: [...trackQueue], playedTracks: [...playedTracks] });
 	} catch (err) {
-	  console.error('Error in queue management:', {
-		error: err.response?.data || err,
-		status: err.response?.status,
-		statusText: err.response?.statusText
-	  });
-	  // Note: We don't remove the track from trackQueue even if Spotify API calls fail
-	  // This keeps the UI consistent and allows for retry mechanisms
-	  return res.status(500).json({ 
-		error: 'Failed to manage queue',
-		details: err.response?.data || err.message,
-		status: err.response?.status
-	  });
+	  console.error('Error in queue management:', err);
+	  return res.status(500).json({ error: 'Failed to manage queue' });
 	}
 });
 
@@ -287,6 +281,18 @@ router.post('/skip', async (req, res) => {
   }
 
   try {
+    // Get currently playing track before skipping
+    const currentTrack = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (currentTrack.data && currentTrack.data.item) {
+      // Add current track to played tracks
+      playedTracks.push(currentTrack.data.item.uri);
+    }
+
     // Skip only once using the DJ's token
     await axios.post('https://api.spotify.com/v1/me/player/next', null, {
       headers: {
@@ -297,8 +303,13 @@ router.post('/skip', async (req, res) => {
       }
     });
 
-    // Broadcast the skip action to all clients
+    // Broadcast the skip action and updated queues to all clients
     io.emit('playback:skip');
+    io.emit('queueUpdated', {
+      queue: [...trackQueue],
+      playedTracks: [...playedTracks]
+    });
+    
     return res.json({ success: true });
   } catch (err) {
     console.error('Error skipping track:', err.response?.data || err);

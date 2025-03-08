@@ -18,6 +18,7 @@ let userSessions = {}; // { token: { username, token }, ... }
 // In-memory track queue
 let trackQueue = [];
 let pendingTracks = [];  // Add this to store pending tracks
+let playedTracks = [];   // Add this to track played songs
 
 // Track current playback state
 const playbackState = {
@@ -79,6 +80,7 @@ module.exports = {
 //   clearDjSession: () => (djSession = null),
   trackQueue,
   pendingTracks,  // Export pendingTracks
+  playedTracks,    // Export playedTracks
   io,
   ROOM_PASSWORD,
   userSessions,
@@ -148,9 +150,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  // On connect, send both current queue and pending tracks
-  socket.emit('queueUpdated', trackQueue);
-  socket.emit('pendingTracksUpdated', pendingTracks);
+  // On connect, send both current queue and played tracks
+  socket.emit('queueUpdated', {
+    queue: [...trackQueue],
+    playedTracks: [...playedTracks]
+  });
   
   // Send current user list to the new connection (just usernames)
   socket.emit('users:update', Array.from(connectedUsers.values()));
@@ -159,6 +163,7 @@ io.on('connection', (socket) => {
     socketId: socket.id,
     queueLength: trackQueue.length,
     queue: trackQueue,
+    playedTracks,
     timestamp: new Date().toISOString()
   });
 

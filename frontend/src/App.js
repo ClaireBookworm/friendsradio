@@ -119,10 +119,8 @@ const styles = {
 };
 
 // A small component for displaying the queued tracks
-function QueueList({ queue, accessToken }) {
+function QueueList({ queue = [], accessToken, playedTracks = [] }) {
 	const [trackNames, setTrackNames] = useState({});
-	const [currentTrackUri, setCurrentTrackUri] = useState(null);
-	const [playedSongs, setPlayedSongs] = useState([]);
 
 	// Function to get track name from Spotify
 	const getTrackName = async (uri) => {
@@ -155,38 +153,8 @@ function QueueList({ queue, accessToken }) {
 		updateTrackNames();
 	}, [queue, accessToken]);
 
-	// Listen for player state changes to track played songs
-	useEffect(() => {
-		const checkCurrentTrack = async () => {
-			try {
-				const response = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
-					headers: {
-						Authorization: `Bearer ${accessToken}`
-					}
-				});
-
-				if (response.data && response.data.item) {
-					const newTrackUri = response.data.item.uri;
-					if (newTrackUri !== currentTrackUri) {
-						// If we have a previous track, mark it as played
-						if (currentTrackUri) {
-							setPlayedSongs(prev => [...prev, currentTrackUri]);
-						}
-						setCurrentTrackUri(newTrackUri);
-					}
-				}
-			} catch (error) {
-				console.error('Error checking current track:', error);
-			}
-		};
-
-		// Check every 5 seconds for track changes
-		const interval = setInterval(checkCurrentTrack, 5000);
-		return () => clearInterval(interval);
-	}, [accessToken, currentTrackUri]);
-
 	// Filter out played songs from the queue
-	const unplayedQueue = queue.filter(item => !playedSongs.includes(item.uri));
+	const unplayedQueue = queue.filter(item => !playedTracks.includes(item.uri));
 
 	return (
 		<div className="queue-container">
@@ -240,6 +208,7 @@ function App() {
 	// Track queue
 	const [queue, setQueue] = useState([]);
 	const [isConnected, setIsConnected] = useState(false);
+	const [playedTracks, setPlayedTracks] = useState([]);
 
 	// For adding new items to queue
 	const [trackUri, setTrackUri] = useState('');
@@ -262,9 +231,12 @@ function App() {
 		});
 
 		// Listen for queue updates
-		socket.on('queueUpdated', (serverQueue) => {
-			console.log('Received server queue:', serverQueue);
-			setQueue(serverQueue);
+		socket.on('queueUpdated', (data) => {
+			console.log('Received server queue:', data);
+			setQueue(data.queue);
+			if (data.playedTracks) {
+				setPlayedTracks(data.playedTracks);
+			}
 		});
 
 		return () => {
@@ -527,7 +499,7 @@ function App() {
 				)}
 
 				{/* Queue and Player Section */}
-				{!djToken && <QueueList queue={queue} accessToken={accessToken} />}
+				{!djToken && <QueueList queue={queue} accessToken={accessToken} playedTracks={playedTracks} />}
 				
 				<Player 
 					accessToken={accessToken} 
