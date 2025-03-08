@@ -207,7 +207,7 @@ body {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
-	gap: var(--spacing-md);
+	/* gap: var(--spacing-md); */
 }
 
 .messages-container {
@@ -241,6 +241,10 @@ body {
 
 .message:last-child {
 	margin-bottom: 0;
+}
+
+.message-text {
+	color: white;
 }
 
 @keyframes fadeIn {
