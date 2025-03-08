@@ -244,7 +244,7 @@ body {
 }
 
 .message-text {
-	color: white;
+	color: var(--color-primary);
 }
 
 @keyframes fadeIn {
@@ -259,7 +259,8 @@ body {
 }
 
 .username {
-	color: var(--color-primary);
+	/* color: var(--color-primary); */
+	color: #00a868;
 	font-weight: bold;
 	margin-right: var(--spacing-sm);
 }
