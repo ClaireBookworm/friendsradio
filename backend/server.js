@@ -102,7 +102,7 @@ io.on('connection', (socket) => {
   console.log('New client connected');
   
   // Handle user joining
-  socket.on('user:join', (username) => {
+  socket.on('user:join', async (username) => {
     console.log('User joined:', username);
     
     // Store username in connectedUsers
@@ -117,6 +117,9 @@ io.on('connection', (socket) => {
     // Broadcast updated user list (just usernames)
     const users = Array.from(connectedUsers.values());
     io.emit('users:updated', users);
+
+    // Send current queue state to the new user
+    socket.emit('queueUpdated', trackQueue);
   });
 
   // Handle token updates separately

@@ -436,10 +436,13 @@ function App() {
 	useEffect(() => {
 		if (!socket || !accessToken || !deviceId) return;
 
+		let skipInProgress = false;
+
 		// Handle skip events
 		socket.on('playback:skip', async () => {
-			if (!djToken) { // Only non-DJ users should sync
+			if (!djToken && !skipInProgress) { // Only non-DJ users should sync
 				try {
+					skipInProgress = true;
 					await axios.post('https://api.spotify.com/v1/me/player/next', null, {
 						headers: {
 							Authorization: `Bearer ${accessToken}`
@@ -450,6 +453,8 @@ function App() {
 					});
 				} catch (error) {
 					console.error('Error syncing skip:', error);
+				} finally {
+					skipInProgress = false;
 				}
 			}
 		});

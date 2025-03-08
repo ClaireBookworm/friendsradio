@@ -46,7 +46,7 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
 
     window.onSpotifyWebPlaybackSDKReady = () => {
       const player = new window.Spotify.Player({
-        name: 'Web Playback SDK',
+        name: 'Retro Friends Radio',
         getOAuthToken: cb => { cb(accessToken); },
         volume: 0.5
       });
@@ -125,17 +125,6 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
       }
     });
 
-    // Listen for skip commands from DJ
-    socket.on('playback:skip', async () => {
-      if (!player) return;
-      
-      try {
-        await player.nextTrack();
-      } catch (error) {
-        console.error('Error skipping track:', error);
-      }
-    });
-
     // Listen for general playback state updates
     socket.on('playbackState', async (state) => {
       if (!state.currentTrack) return;
@@ -177,7 +166,6 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
 
     return () => {
       socket.off('playback:stateChange');
-      socket.off('playback:skip');
       socket.off('playbackState');
     };
   }, [socket, player, isReady, deviceId, accessToken, djToken]);
@@ -205,21 +193,64 @@ function Player({ accessToken, djToken, onDeviceIdChange, socket }) {
 
   const handleSkip = async () => {
     if (!djToken) {
-      alert('You must be the DJ to skip tracks!');
+      alert('You must be the DJ to skip!');
       return;
     }
 
+    // Add a flag to prevent double execution
+    if (handleSkip.isSkipping) return;
+    
     try {
+      handleSkip.isSkipping = true;
       await axios.post(`${BACKEND_URL}/spotify/skip`, {
         djToken,
         accessToken,
         deviceId
       });
-    } catch (error) {
-      console.error('Error skipping track:', error);
+    } catch (err) {
+      console.error('Skip track error:', err);
       alert('Failed to skip track');
+    } finally {
+      // Reset the flag after a delay
+      setTimeout(() => {
+        handleSkip.isSkipping = false;
+      }, 1000);
     }
   };
+
+  useEffect(() => {
+    if (!socket || !accessToken || !deviceId) return;
+
+    let skipInProgress = false;
+
+    // Handle skip events
+    socket.on('playback:skip', async () => {
+      if (!djToken && !skipInProgress) { // Only non-DJ users should sync
+        try {
+          skipInProgress = true;
+          
+          await axios.post('https://api.spotify.com/v1/me/player/next', null, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`
+            },
+            params: {
+              device_id: deviceId
+            }
+          });
+        } catch (error) {
+          console.error('Error syncing skip:', error);
+        } finally {
+          setTimeout(() => {
+            skipInProgress = false;
+          }, 1000);
+        }
+      }
+    });
+
+    return () => {
+      socket.off('playback:skip');
+    };
+  }, [socket, accessToken, deviceId, djToken]);
 
   return (
     <div className="player-container">

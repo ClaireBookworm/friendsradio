@@ -275,7 +275,7 @@ router.post('/skip', async (req, res) => {
   }
 
   try {
-    // Skip only once using the DJ's token
+    // Execute skip only once with DJ's token
     await axios.post('https://api.spotify.com/v1/me/player/next', null, {
       headers: {
         Authorization: `Bearer ${accessToken}`
@@ -285,8 +285,9 @@ router.post('/skip', async (req, res) => {
       }
     });
 
-    // Broadcast the skip action to all clients
+    // Broadcast the skip event to non-DJ users
     io.emit('playback:skip');
+    
     return res.json({ success: true });
   } catch (err) {
     console.error('Error skipping track:', err.response?.data || err);
