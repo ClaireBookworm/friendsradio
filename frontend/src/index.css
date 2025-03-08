@@ -254,8 +254,12 @@ body {
 	}
 }
 
-.username {
+.message-text {
 	color: var(--color-primary);
+}
+
+.username {
+	color: #00a868;
 	font-weight: bold;
 	margin-right: var(--spacing-sm);
 }

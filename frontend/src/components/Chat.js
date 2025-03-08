@@ -49,7 +49,7 @@ function Chat({ socket, spotifyUsername }) {
 				{messages.map((msg, idx) => (
 					<div key={idx} className="message">
 						<span className="username">{msg.username}:</span>
-						{msg.text}
+						<span className="message-text">{msg.text}</span>
 						<span className="timestamp">{formatTimestamp(msg.timestamp)}</span>
 					</div>
 				))}
