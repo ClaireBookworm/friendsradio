@@ -174,37 +174,27 @@ router.post('/queue', async (req, res) => {
 	trackQueue.push(newItem);
 	
 	try {
-	  // Broadcast the updated queue to all connected clients BEFORE trying Spotify API
-	  // This ensures the UI updates even if Spotify API calls fail for some users
+	  // Add to DJ's queue first
+	  await axios.post('https://api.spotify.com/v1/me/player/queue', null, {
+		headers: {
+		  'Authorization': `Bearer ${accessToken}`,
+		  'Content-Type': 'application/json'
+		},
+		params: {
+		  uri: uri,
+		  device_id: deviceId
+		}
+	  });
+
+	  // Broadcast the updated queue and the add-to-queue action to all clients
 	  io.emit('queueUpdated', [...trackQueue]);
+	  io.emit('queue:add', { uri, deviceId });
+
 	  console.log('Broadcasted queue update to all clients:', {
 		queueLength: trackQueue.length,
 		queue: trackQueue,
 		timestamp: new Date().toISOString()
 	  });
-
-	  // Get all connected user sessions that have Spotify tokens
-	  const connectedUsers = Object.values(userSessions).filter(user => user.accessToken);
-	  
-	  // Try to add to each user's Spotify queue
-	  for (const user of connectedUsers) {
-		try {
-		  await axios.post('https://api.spotify.com/v1/me/player/queue', null, {
-			headers: {
-			  'Authorization': `Bearer ${user.accessToken}`,
-			  'Content-Type': 'application/json'
-			},
-			params: {
-			  uri: uri,
-			  device_id: user.deviceId
-			}
-		  });
-		  console.log(`Added track to queue for user ${user.username}`);
-		} catch (error) {
-		  console.error(`Failed to add track to queue for user ${user.username}:`, error.response?.data || error);
-		  // Continue with other users even if one fails
-		}
-	  }
 
 	  return res.json({ success: true, queue: [...trackQueue] });
 	} catch (err) {
@@ -213,8 +203,6 @@ router.post('/queue', async (req, res) => {
 		status: err.response?.status,
 		statusText: err.response?.statusText
 	  });
-	  // Note: We don't remove the track from trackQueue even if Spotify API calls fail
-	  // This keeps the UI consistent and allows for retry mechanisms
 	  return res.status(500).json({ 
 		error: 'Failed to manage queue',
 		details: err.response?.data || err.message,
@@ -287,26 +275,15 @@ router.post('/skip', async (req, res) => {
   }
 
   try {
-    // Get all connected user sessions that have Spotify tokens
-    const connectedUsers = Object.values(userSessions).filter(user => user.accessToken);
-    
-    // Try to skip for each connected user
-    for (const user of connectedUsers) {
-      try {
-        await axios.post('https://api.spotify.com/v1/me/player/next', null, {
-          headers: {
-            Authorization: `Bearer ${user.accessToken}`
-          },
-          params: {
-            device_id: user.deviceId
-          }
-        });
-        console.log(`Skipped track for user ${user.username}`);
-      } catch (error) {
-        console.error(`Failed to skip track for user ${user.username}:`, error.response?.data || error);
-        // Continue with other users even if one fails
+    // Skip only once using the DJ's token
+    await axios.post('https://api.spotify.com/v1/me/player/next', null, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      },
+      params: {
+        device_id: deviceId
       }
-    }
+    });
 
     // Broadcast the skip action to all clients
     io.emit('playback:skip');
@@ -332,26 +309,15 @@ router.put('/playback', async (req, res) => {
   }
 
   try {
-    // Get all connected user sessions that have Spotify tokens
-    const connectedUsers = Object.values(userSessions).filter(user => user.accessToken);
-    
-    // Try to update playback state for each connected user
-    for (const user of connectedUsers) {
-      try {
-        await axios.put(`https://api.spotify.com/v1/me/player/${action}`, null, {
-          headers: {
-            Authorization: `Bearer ${user.accessToken}`
-          },
-          params: {
-            device_id: user.deviceId
-          }
-        });
-        console.log(`${action} successful for user ${user.username}`);
-      } catch (error) {
-        console.error(`Failed to ${action} for user ${user.username}:`, error.response?.data || error);
-        // Continue with other users even if one fails
+    // Execute action once with DJ's token
+    await axios.put(`https://api.spotify.com/v1/me/player/${action}`, null, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      },
+      params: {
+        device_id: deviceId
       }
-    }
+    });
 
     // Broadcast the playback state change to all clients
     io.emit('playback:stateChange', { action });

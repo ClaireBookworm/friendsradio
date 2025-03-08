@@ -432,6 +432,72 @@ function App() {
 		}
 	}, [spotifyUsername, socket.connected, accessToken, deviceId]);
 
+	// Listen for playback and queue events from server
+	useEffect(() => {
+		if (!socket || !accessToken || !deviceId) return;
+
+		// Handle skip events
+		socket.on('playback:skip', async () => {
+			if (!djToken) { // Only non-DJ users should sync
+				try {
+					await axios.post('https://api.spotify.com/v1/me/player/next', null, {
+						headers: {
+							Authorization: `Bearer ${accessToken}`
+						},
+						params: {
+							device_id: deviceId
+						}
+					});
+				} catch (error) {
+					console.error('Error syncing skip:', error);
+				}
+			}
+		});
+
+		// Handle play/pause events
+		socket.on('playback:stateChange', async ({ action }) => {
+			if (!djToken) { // Only non-DJ users should sync
+				try {
+					await axios.put(`https://api.spotify.com/v1/me/player/${action}`, null, {
+						headers: {
+							Authorization: `Bearer ${accessToken}`
+						},
+						params: {
+							device_id: deviceId
+						}
+					});
+				} catch (error) {
+					console.error('Error syncing playback state:', error);
+				}
+			}
+		});
+
+		// Handle queue additions
+		socket.on('queue:add', async ({ uri, deviceId: targetDeviceId }) => {
+			if (!djToken) { // Only non-DJ users should sync
+				try {
+					await axios.post('https://api.spotify.com/v1/me/player/queue', null, {
+						headers: {
+							Authorization: `Bearer ${accessToken}`
+						},
+						params: {
+							uri: uri,
+							device_id: deviceId
+						}
+					});
+				} catch (error) {
+					console.error('Error syncing queue addition:', error);
+				}
+			}
+		});
+
+		return () => {
+			socket.off('playback:skip');
+			socket.off('playback:stateChange');
+			socket.off('queue:add');
+		};
+	}, [socket, accessToken, deviceId, djToken]);
+
 	return (
 		<div className="app-container">
 			{/* LEFT COLUMN: Chat */}
